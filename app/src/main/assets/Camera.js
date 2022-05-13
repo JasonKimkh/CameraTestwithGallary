@@ -19,7 +19,9 @@ function setImage(path) {
 function cameraButton(){
  Android.takePicture();
 }
-
+function gallaryButton(){
+ Android.callGallary();
+}
 function clickTest() {
  alert("자바스크립트 실행");
 }

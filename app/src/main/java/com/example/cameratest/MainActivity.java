@@ -16,10 +16,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -50,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private WebSettings webViewSetting;
     private static final int MY_PERMISSION_STORAGE = 1111;
     private static String filePath;
+    private static String gimg;
     String mCurrentPhotoPath;
    // CameraTest cameraTest = new CameraTest(this);
 
@@ -155,17 +158,36 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @JavascriptInterface
+    public void callGallary() {
+
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setData(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        intent.setType("image/*");
+        startActivityForResult(intent, 33);
+    }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        Log.d("is requestCode got?", String.valueOf(requestCode));
-        if (requestCode == 99) {
-            Log.d("is requestCode got?", String.valueOf(requestCode));
             if (resultCode == RESULT_OK) {
                 Log.d("is resultcode ResultOK??", String.valueOf(resultCode));
+                switch (requestCode) {
+                    case 99:
+                        Log.d("is requestCode got?", String.valueOf(requestCode));
                 resizeImage();
                 setWebviewImage();
+                break;
+                    case 33:
+                        Log.d("is requestCode got?", String.valueOf(requestCode));
+                        String img = sendPicture(data.getData());
+                        gimg = String.valueOf(img);
+
+                        resizeImage_gallary();
+                        setWebviewImage_gallary();
+                        break;
+
 
             }
         }
@@ -215,6 +237,56 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+    private void resizeImage_gallary() {
+        String path = gimg;
+        Log.v("reszieImage_gimg:", gimg);
+        OutputStream out = null;
+        try {
+            Bitmap bitmap = BitmapFactory.decodeFile(path);
+            //사진을 1/10크기로 만든다.
+            int width = bitmap.getWidth() / 10;
+            int height = bitmap.getHeight() / 10;
+            Bitmap resizeBitmap = Bitmap.createScaledBitmap(bitmap, width, height, true);
+
+            //화면 회전이 된다.
+            Matrix matrix = new Matrix();
+            matrix.postRotate(90);
+            Bitmap rotateBitmap = Bitmap.createBitmap(resizeBitmap, 0, 0, width, height, matrix, true);
+
+            //결과를 다시 저장한다.
+            Bitmap resultBitmap = rotateBitmap;
+            File photoFile = new File(path);
+            out = new FileOutputStream(photoFile);
+            resultBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private String sendPicture(Uri imgUri) {
+
+        String gimg = getRealPathFromURI(imgUri); // path 경로
+        Log.v("##", "sendPicture" + gimg);
+        return gimg;
+
+    }
+
+    private String getRealPathFromURI(Uri contentUri) {
+        int column_index=0;
+        String[] proj = {MediaStore.Images.Media.DATA};
+        Cursor cursor = getContentResolver().query(contentUri, proj, null, null, null);
+        if(cursor.moveToFirst()){
+            column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+        }
+
+        return cursor.getString(column_index);
+    }
 
     protected void setWebviewImage() {
 
@@ -225,19 +297,17 @@ public class MainActivity extends AppCompatActivity {
         Log.d("webview null?", String.valueOf(webView));
         webView.loadUrl("javascript:setImage('"+path+"')");
         webView.loadUrl("javascript:alert(1)");
-
-
-
-        //MainActivity mainActivity = new MainActivity();
-        //mainActivity.loadWeb(script);
     }
 
-   /* @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        Log.d("##", "onActivityResult: ");
+    protected void setWebviewImage_gallary() {
 
-        cameraTest.onActivityResult(requestCode, resultCode, data);
+        String path = "file://" + gimg;
+        Log.v("setWebViewImage_filePath:", path);
+        //String script = "javascript:setImage(\"" + path + "\")";
+        //Log.d("script 내용", String.valueOf(script));
+        Log.d("webview null?", String.valueOf(webView));
+        webView.loadUrl("javascript:setImage('" + path + "')");
+        webView.loadUrl("javascript:alert(1)");
 
-    }*/
+    }
 }
